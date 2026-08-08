@@ -155,7 +155,14 @@ For install and security, see the [README](README.md). For how to use features, 
 
 ## Unreleased
 
-Nothing yet.
+### Security
+
+- **new** — Mandatory single-administrator Argon2id login with in-memory Sessions, 12-hour idle expiry, 7-day absolute expiry, CSRF protection, login throttling, and logout.
+- **fix** — Removed the unrestricted `/data/` file server. Only strictly validated public icon, favicon, and font assets are served; JSON, backups, logs, archives, dotfiles, traversal paths, and directory listings return `404`.
+- **new** — Added the public liveness-only `GET /healthz` endpoint and moved Docker health checks away from authenticated `/api/health`.
+
+- **new** — Source launches now load an ignored `.env` file automatically without overriding existing process variables or expanding `$` in secrets; `.env` files are excluded from Docker build contexts.
+- **change** — `NEXTDASH_WRITE_TOKEN` is now a restricted browser-extension credential rather than an authentication bypass for the whole application. Existing deployments must configure `NEXTDASH_ADMIN_PASSWORD_HASH` before upgrading.
 
 ---
 

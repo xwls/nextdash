@@ -16,9 +16,10 @@ async function getStoredWriteToken() {
 async function apiWriteHeaders(extraHeaders = {}) {
   const headers = { ...(extraHeaders || {}) };
   const token = await getStoredWriteToken();
-  if (token) {
-    headers['X-NextDash-Token'] = token;
+  if (!token) {
+    throw new Error('nextdash_write_token_missing');
   }
+  headers['X-NextDash-Token'] = token;
   return headers;
 }
 
@@ -93,7 +94,8 @@ function normalizePagesData(pages) {
 
 async function loadPagesList(serverUrl) {
   const base = normalizeServerUrl(serverUrl);
-  const response = await fetch(new URL('/api/pages', base));
+  const response = await fetch(new URL('/api/pages', base), { headers: await apiWriteHeaders() });
+  if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
   if (!response.ok) throw new Error('pages');
   const pages = await response.json();
   return normalizePagesData(pages);
@@ -101,14 +103,16 @@ async function loadPagesList(serverUrl) {
 
 async function loadCategoriesList(serverUrl, pageId) {
   const base = normalizeServerUrl(serverUrl);
-  const response = await fetch(new URL(`/api/categories?page=${pageId}`, base));
+  const response = await fetch(new URL(`/api/categories?page=${pageId}`, base), { headers: await apiWriteHeaders() });
+  if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
   if (!response.ok) throw new Error('categories');
   return response.json();
 }
 
 async function findDuplicateBookmark(serverUrl, pageId, bookmarkUrl) {
   const base = normalizeServerUrl(serverUrl);
-  const response = await fetch(new URL(`/api/bookmarks?page=${pageId}`, base));
+  const response = await fetch(new URL(`/api/bookmarks?page=${pageId}`, base), { headers: await apiWriteHeaders() });
+  if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
   if (!response.ok) return null;
   const bookmarks = await response.json();
   const key = typeof BookmarkUrlUtils !== 'undefined'
@@ -125,7 +129,8 @@ async function findDuplicateBookmark(serverUrl, pageId, bookmarkUrl) {
 
 async function loadAllBookmarks(serverUrl) {
   const base = normalizeServerUrl(serverUrl);
-  const response = await fetch(new URL('/api/bookmarks?all=true', base));
+  const response = await fetch(new URL('/api/bookmarks?all=true', base), { headers: await apiWriteHeaders() });
+  if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
   if (!response.ok) return [];
   const bookmarks = await response.json();
   return Array.isArray(bookmarks) ? bookmarks : [];
@@ -194,7 +199,7 @@ async function postAddBookmark(serverUrl, pageId, name, url, category, note, tag
   if (extras.previewTitle) bookmark.previewTitle = extras.previewTitle;
   if (extras.previewDesc) bookmark.previewDesc = extras.previewDesc;
   if (extras.previewImage) bookmark.previewImage = extras.previewImage;
-  return fetch(new URL('/api/bookmarks/add', base), {
+  const response = await fetch(new URL('/api/bookmarks/add', base), {
     method: 'POST',
     headers: await apiWriteHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
@@ -202,11 +207,13 @@ async function postAddBookmark(serverUrl, pageId, name, url, category, note, tag
       bookmark,
     })
   });
+  if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
+  return response;
 }
 
 async function postInboxLink(serverUrl, url, options = {}) {
   const base = normalizeServerUrl(serverUrl);
-  return fetch(new URL('/api/inbox', base), {
+  const response = await fetch(new URL('/api/inbox', base), {
     method: 'POST',
     headers: await apiWriteHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
@@ -216,6 +223,8 @@ async function postInboxLink(serverUrl, url, options = {}) {
       source: options.source || 'extension',
     }),
   });
+  if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
+  return response;
 }
 
 async function resolveSaveTarget(serverUrl, syncDefaults, lastCtx) {

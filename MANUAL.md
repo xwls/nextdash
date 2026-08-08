@@ -49,7 +49,7 @@ This manual is for new users and anyone who wants a structured reference. It goe
 
 nextDash is a **self-hosted bookmark dashboard** you open in your browser. There are:
 
-- **No user accounts** — one installation, one dataset on disk.
+- **One administrator account** — credentials come from environment variables; one installation still has one shared dataset on disk.
 - **No cloud sync** — your bookmarks live in files you control (typically a `data/` folder).
 - **A keyboard-first design** — search, jump between pages, add bookmarks, and run commands without reaching for the mouse.
 
@@ -99,15 +99,32 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - PORT=8080
+      PORT: "8080"
+      NEXTDASH_ADMIN_USERNAME: ${NEXTDASH_ADMIN_USERNAME:-admin}
+      NEXTDASH_ADMIN_PASSWORD_HASH: ${NEXTDASH_ADMIN_PASSWORD_HASH:?Set it in .env}
+      NEXTDASH_AUTH_COOKIE_SECURE: "1"
     restart: unless-stopped
 ```
+
+Generate a password hash first:
+
+```sh
+docker run --rm -it ghcr.io/jordibrouwer/nextdash:latest hash-password
+```
+
+Save it in `.env` using single quotes so the `$` characters remain literal, then start Compose:
+
+```dotenv
+NEXTDASH_ADMIN_PASSWORD_HASH='$argon2id$v=19$m=65536,t=3,p=2$...$...'
+```
+
+The same `.env` file is loaded automatically when starting from source with `go run .` or when launching the compiled binary from that directory. Variables already present in the process environment override file values; nextDash does not expand `$` expressions inside `.env`.
 
 ```sh
 docker-compose up -d
 ```
 
-Open `http://localhost:8080` in your browser.
+Use HTTPS in production. For local `http://localhost:8080` development only, set `NEXTDASH_AUTH_COOKIE_SECURE=0`, then log in with the configured administrator username and password.
 
 ### 🧱 Option B — Build from source
 
@@ -1293,7 +1310,7 @@ If a dashboard tab is open on the same server, it may toast and refresh.
 
 ### Write token & CORS
 
-- If the server sets `NEXTDASH_WRITE_TOKEN`, paste the same value in extension **Settings → Write token**.  
+- When using the extension, configure `NEXTDASH_WRITE_TOKEN` on the server and paste the same value in extension **Settings → Write token**.
 - If you set `NEXTDASH_CORS_ORIGINS` on the server, add your extension ID (`chrome-extension://…`) to the allowlist or cross-origin saves will fail.
 
 See `extension/README.md` for development notes.
@@ -1379,52 +1396,52 @@ Keep hands on home row: **`>`** search → **Enter** open → **Esc** → **`&`*
 
 ## 21. 🔐 Security and self-hosting
 
-nextDash has **no user accounts**. Anyone who can reach the URL can read data and change bookmarks/settings unless you add network or token protection.
+nextDash requires a **single administrator login**. It does not provide registration, multiple users, roles, password recovery, or per-user data separation.
 
-**Recommended:**
+### Mandatory administrator authentication
 
-| Setup | When |
-|-------|------|
-| **Tailscale / private VPN** | Access from your devices only |
-| **Reverse proxy + auth** | Caddy, Traefik, nginx + basic auth or SSO |
-| **localhost + SSH tunnel** | Local dev only |
+| Variable | Meaning |
+|---|---|
+| `NEXTDASH_ADMIN_USERNAME` | Login name; defaults to `admin` |
+| `NEXTDASH_ADMIN_PASSWORD_HASH` | Required Argon2id PHC password hash |
+| `NEXTDASH_AUTH_COOKIE_SECURE` | Defaults to `1`; set `0` only for local plain HTTP |
 
-**Do not** port-forward plain HTTP to the public internet without auth.
+Generate the hash with hidden password input:
 
-### Optional `NEXTDASH_WRITE_TOKEN`
+```sh
+go run . hash-password
+# or
+docker run --rm -it <image> hash-password
+```
 
-For Docker or bare-metal on a **LAN or VPS**, set:
+The browser Session is kept only in server memory. It expires after 12 hours without activity and always expires 7 days after login. Restarting the process logs all browsers out. Logout removes the Session immediately. Password changes are made by generating a new hash and restarting.
+
+This is a fail-closed, breaking upgrade: a missing, malformed, or excessive-parameter hash stops startup instead of leaving the application open. Store the PHC value in an ignored `.env` file with single quotes:
+
+```dotenv
+NEXTDASH_ADMIN_PASSWORD_HASH='$argon2id$v=19$m=65536,t=3,p=2$...$...'
+```
+
+The same `.env` file is loaded automatically when starting from source with `go run .` or when launching the compiled binary from that directory. Variables already present in the process environment override file values; nextDash does not expand `$` expressions inside `.env`.
+
+### Browser extension `NEXTDASH_WRITE_TOKEN`
+
+The Write Token is a separate extension API credential, not a Dashboard login. It grants only the operations the bundled extension needs: read pages/categories/bookmarks, add a bookmark or Inbox item, fetch a preview, and save an icon from a URL. It cannot access settings, backups, imports, reset, Dashboard HTML, or maintenance endpoints.
 
 ```yaml
 environment:
-  - NEXTDASH_WRITE_TOKEN=your-long-random-secret
+  NEXTDASH_WRITE_TOKEN: your-long-random-secret
 ```
 
-When set, protected API calls require header `X-NextDash-Token: your-long-random-secret`. Opening **Dashboard**, **Config**, or **Health** in the browser supplies this header automatically via a meta tag (same origin only). When the variable is **unset**, nothing requires the token.
+Paste the same value in extension **Settings → Write token**. Missing or mismatched tokens produce an explicit extension authentication error. Dashboard writes also send the token when configured, preserving the existing sensitive-operation check as a second layer.
 
-| Protected action | Endpoint |
-|------------------|----------|
-| Reset all data | `POST /api/reset` (+ JSON `{"confirm":true}`) |
-| Import ZIP backup | `POST /api/import` |
-| Download ZIP backup | `GET /api/backup` |
-| Delete page | `DELETE /api/pages/{id}` |
-| Health: delete bookmark | `POST /api/health/delete-bookmark` |
-| Health: retest all | `POST /api/health/retest-all` |
-| Health: merge duplicates | `POST /api/health/merge-duplicates` |
-| Health: auto-heal suggest | `GET /api/health/auto-heal-suggest` |
-| Health: auto-heal apply | `POST /api/health/auto-heal-apply` |
-| Health: open broken links | `POST /api/health/open-broken` |
-| Health: cache scan result | `POST /api/health/cache-scan` |
-| Health: update bookmark status | `POST /api/health/update-status` |
-| Bookmark link preview | `GET /api/bookmark-preview` |
-| Clear all preview metadata | `POST /api/previews/clear` |
-| Refresh all preview metadata | `POST /api/previews/refresh` |
-| Reset theme colours | `POST /api/colors/reset` |
-| Upload favicon / font / icon | `POST /api/favicon`, `/api/font`, `/api/icon`, `/api/icon/from-url` |
-| Save bookmarks / add / import | `POST /api/bookmarks`, `/api/bookmarks/add`, `/api/bookmarks/import-browser` |
-| Save pages / categories / finders / settings / colours | `POST /api/pages`, `/api/categories`, `/api/finders`, `/api/settings`, `/api/colors` |
+### Sessions, CSRF, and public files
 
-Read-only endpoints (`GET` bookmarks, settings, health list, ping, etc.) stay open. The browser extension can store the same token under **Settings → Write token**.
+Authenticated browser writes use a per-Session CSRF token and same-origin checks. The Session cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` by default. Production therefore requires HTTPS through Caddy, Cloudflare Tunnel/Access, nginx, Traefik, or another TLS proxy.
+
+The old `/data/` directory file server has been removed. Public access is limited to validated icon, favicon, and font filenames. Bookmarks JSON, settings, backups, logs, ZIP files, temporary files, dotfiles, nested paths, and directory listings return `404`.
+
+`GET /healthz` is the only public health endpoint and reports liveness only. The Dashboard health page and `/api/health` remain authenticated.
 
 ### Optional `NEXTDASH_DATA_DIR`
 
@@ -1596,7 +1613,7 @@ Set manual city or browser location permission; save general settings; check ref
 ### Extension cannot save
 
 - Verify server URL, network, and that nextDash is running.  
-- If `NEXTDASH_WRITE_TOKEN` is set, paste it in extension **Settings → Write token**.  
+- The extension requires `NEXTDASH_WRITE_TOKEN`; paste it in extension **Settings → Write token**.
 - If `NEXTDASH_CORS_ORIGINS` is set, include `chrome-extension://your-extension-id` in the allowlist.  
 - **401** = missing/wrong write token; **403** = CORS origin not allowed; **409** = duplicate shortcut on that page.  
 - Check browser console and server logs (enable `NEXTDASH_ACTIVITY_LOG=security` for auth/rate-limit lines).

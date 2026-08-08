@@ -33,3 +33,9 @@ dist/
 build/
 .tmp/
 .cache/
+
+# Local environment secrets (Compose reads .env before building).
+.env
+.env.*
+!.env.example
+.tmp-*

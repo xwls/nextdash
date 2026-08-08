@@ -33,11 +33,12 @@
         try {
             const response = await fetch(apiUrl(apiBase, '/api/icon/from-url'), {
                 method: 'POST',
-                headers: typeof global.nextDashWriteHeaders === 'function'
-                    ? global.nextDashWriteHeaders({ 'Content-Type': 'application/json' })
+                headers: typeof global.apiWriteHeaders === 'function'
+                    ? await global.apiWriteHeaders({ 'Content-Type': 'application/json' })
                     : { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: iconUrl }),
             });
+            if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
             if (!response.ok) return '';
             const result = await response.json();
             return result.icon || '';
@@ -50,8 +51,9 @@
         const safeUrl = global.BookmarkUrlUtils?.ensureHttpUrl(url) || String(url || '').trim();
         if (!safeUrl) throw new Error('no url');
         const response = await fetch(`${apiUrl(apiBase, '/api/bookmark-preview')}?url=${encodeURIComponent(safeUrl)}`, {
-            headers: typeof global.nextDashWriteHeaders === 'function' ? global.nextDashWriteHeaders() : {},
+            headers: typeof global.apiWriteHeaders === 'function' ? await global.apiWriteHeaders() : {},
         });
+        if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
         if (!response.ok) throw new Error('fetch failed');
         const data = await response.json();
         return {

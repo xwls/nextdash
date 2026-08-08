@@ -1,5 +1,5 @@
 # Production Docker Compose — assets served from the image embed (no static/templates mounts).
-# Use docker-compose.yml for local dev (live CSS/JS from ./static without rebuild).
+# Requires HTTPS at a reverse proxy/tunnel and NEXTDASH_ADMIN_PASSWORD_HASH in .env.
 services:
   nextdash:
     build: .
@@ -8,21 +8,20 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - PORT=8080
-      # Disable privacy-friendly usage analytics for the whole instance.
-      # When true, nothing is sent and the Privacy toggle in Config is
-      # disabled until this is unset again.
-      # - DISABLE_TELEMETRY=true
-      # LAN/VPS hardening (see README.md → Security):
-      # - NEXTDASH_WRITE_TOKEN=change-me-to-a-long-random-string
-      # - NEXTDASH_CORS_ORIGINS=https://dash.example.com,chrome-extension://your-extension-id
-      # - NEXTDASH_ACTIVITY_LOG=mutate,status,security
-      # - NEXTDASH_ACTIVITY_LOG_PERSIST=1
-      # Optional tuning (background CPU/network on small VPS):
-      # - NEXTDASH_DISABLE_PREFETCH=1
-      # - NEXTDASH_OUTBOUND_REQUESTS_PER_MIN=120
-      # - NEXTDASH_SSRF_API_RATE_PER_MIN=60
-      # - NEXTDASH_CSP=off
+      PORT: "8080"
+      NEXTDASH_ADMIN_USERNAME: ${NEXTDASH_ADMIN_USERNAME:-admin}
+      NEXTDASH_ADMIN_PASSWORD_HASH: ${NEXTDASH_ADMIN_PASSWORD_HASH:?Set NEXTDASH_ADMIN_PASSWORD_HASH in .env}
+      NEXTDASH_AUTH_COOKIE_SECURE: "1"
+      # Browser extension credential. Leave empty if the extension is not used.
+      NEXTDASH_WRITE_TOKEN: ${NEXTDASH_WRITE_TOKEN:-}
+      # Recommended hardening examples:
+      # NEXTDASH_CORS_ORIGINS: https://dash.example.com,chrome-extension://your-extension-id
+      # NEXTDASH_ACTIVITY_LOG: mutate,status,security
+      # NEXTDASH_ACTIVITY_LOG_PERSIST: "1"
+      # DISABLE_TELEMETRY: "true"
+      # NEXTDASH_DISABLE_PREFETCH: "1"
+      # NEXTDASH_OUTBOUND_REQUESTS_PER_MIN: "120"
+      # NEXTDASH_SSRF_API_RATE_PER_MIN: "60"
     restart: unless-stopped
     container_name: nextdash
     deploy:

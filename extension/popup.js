@@ -227,7 +227,8 @@ async function refreshPageBookmarks() {
     }
 
     try {
-        const response = await fetch(new URL(`/api/bookmarks?page=${pageId}`, serverUrl));
+        const response = await fetch(new URL(`/api/bookmarks?page=${pageId}`, serverUrl), { headers: await apiWriteHeaders() });
+        if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
         extPageBookmarks = response.ok ? await response.json() : [];
     } catch (error) {
         console.error('Error loading bookmarks for duplicate check:', error);
@@ -235,6 +236,14 @@ async function refreshPageBookmarks() {
     }
 
     updateUrlDuplicateHint();
+}
+
+function extensionRequestErrorMessage(error, fallbackKey, fallbackText) {
+    const code = String(error?.message || '');
+    if (code === 'nextdash_write_token_missing' || code === 'nextdash_auth_failed') {
+        return extT('msgAuthRequired', 'Authentication failed. Configure the extension Write Token to match NEXTDASH_WRITE_TOKEN on the server.');
+    }
+    return extT(fallbackKey, fallbackText);
 }
 
 function showConfirmation(text, onYes) {
@@ -424,7 +433,8 @@ async function loadPages(providedServerUrl) {
     if (!extFormPreview) initExtensionPreview();
 
     try {
-        const response = await fetch(new URL('/api/pages', serverUrl));
+        const response = await fetch(new URL('/api/pages', serverUrl), { headers: await apiWriteHeaders() });
+        if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
         if (!response.ok) throw new Error('Failed to fetch pages');
 
         const pages = normalizePagesData(await response.json());
@@ -482,7 +492,7 @@ async function loadPages(providedServerUrl) {
         hideMessage();
     } catch (error) {
         console.error('Error loading pages:', error);
-        showMessage(extT('msgFailedPages', 'Failed to load pages. Check your server URL.'), 'error');
+        showMessage(extensionRequestErrorMessage(error, 'msgFailedPages', 'Failed to load pages. Check your server URL.'), 'error');
     }
 }
 
@@ -510,7 +520,8 @@ async function loadCategoriesForSettings(pageId) {
     }
 
     try {
-        const response = await fetch(new URL(`/api/categories?page=${pageId}`, serverUrl));
+        const response = await fetch(new URL(`/api/categories?page=${pageId}`, serverUrl), { headers: await apiWriteHeaders() });
+        if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
         if (!response.ok) throw new Error('Failed to fetch categories');
 
         const categories = await response.json();
@@ -541,7 +552,8 @@ async function loadCategories(pageId) {
     }
 
     try {
-        const response = await fetch(new URL(`/api/categories?page=${pageId}`, serverUrl));
+        const response = await fetch(new URL(`/api/categories?page=${pageId}`, serverUrl), { headers: await apiWriteHeaders() });
+        if (response.status === 401 || response.status === 403) throw new Error('nextdash_auth_failed');
         if (!response.ok) throw new Error('Failed to fetch categories');
 
         const categories = await response.json();
@@ -655,7 +667,7 @@ async function saveToInbox() {
         }
     } catch (error) {
         console.error('Error saving to inbox:', error);
-        showMessage(extT('msgFailedInboxSave', 'Failed to save to Inbox. Check console for details.'), 'error');
+        showMessage(extensionRequestErrorMessage(error, 'msgFailedInboxSave', 'Failed to save to Inbox. Check console for details.'), 'error');
     }
 }
 
@@ -702,19 +714,6 @@ async function saveSettings(event) {
         extensionAllowDuplicateUrls: allowDuplicateUrls,
         writeToken: writeToken,
     });
-
-    try {
-        const res = await fetch(new URL('/api/settings', serverUrl));
-        if (res.ok) {
-            const settings = await res.json();
-            if (settings.language) {
-                await chrome.storage.sync.set({ extensionLocale: settings.language });
-                await initExtensionI18n();
-            }
-        }
-    } catch (e) {
-        // keep current locale
-    }
 
     updateUrlDuplicateHint();
     showMessage(extT('msgSettingsSaved', 'Settings saved!'), 'success');
@@ -778,7 +777,7 @@ async function performSave(serverUrl, pageId, name, url, category, note, tags, s
         showSaveSuccess(serverUrl, pageId, name);
     } catch (error) {
         console.error('Error saving bookmark:', error);
-        showMessage(extT('msgFailedSave', 'Failed to save bookmark. Check console for details.'), 'error');
+        showMessage(extensionRequestErrorMessage(error, 'msgFailedSave', 'Failed to save bookmark. Check console for details.'), 'error');
     }
 }
 

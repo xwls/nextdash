@@ -13,9 +13,9 @@
   "labelServerUrl": "nextDash-URL:",
   "labelDefaultPage": "Standardseite:",
   "labelDefaultCategory": "Standardkategorie:",
-  "labelWriteToken": "Schreib-Token (optional):",
+  "labelWriteToken": "Schreib-Token (erforderlich):",
   "writeTokenPlaceholder": "Wie NEXTDASH_WRITE_TOKEN auf dem Server",
-  "settingWriteTokenHint": "Nur nötig, wenn der nextDash-Server X-NextDash-Token für Schreib-APIs verlangt.",
+  "settingWriteTokenHint": "Für den Erweiterungszugriff erforderlich. Muss NEXTDASH_WRITE_TOKEN auf dem Server entsprechen.",
   "tagsPlaceholder": "arbeit, privat, dev",
   "shortcutPlaceholder": "Automatisch aus Name",
   "notePlaceholder": "Optionale Notiz",
@@ -68,5 +68,6 @@
   "previewCleared": "Link-Vorschau gelöscht.",
   "previewUntitled": "Ohne Titel",
   "previewStatusCheck": "···",
-  "moreOptions": "Weitere Optionen"
+  "moreOptions": "Weitere Optionen",
+  "msgAuthRequired": "Authentifizierung fehlgeschlagen. Der Schreib-Token der Erweiterung muss NEXTDASH_WRITE_TOKEN auf dem Server entsprechen."
 }

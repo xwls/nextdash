@@ -13,9 +13,9 @@
   "labelServerUrl": "nextDash 網址：",
   "labelDefaultPage": "預設頁面：",
   "labelDefaultCategory": "預設分類：",
-  "labelWriteToken": "寫入令牌（可選）：",
+  "labelWriteToken": "寫入令牌（必填）：",
   "writeTokenPlaceholder": "與服務端的 NEXTDASH_WRITE_TOKEN 相同",
-  "settingWriteTokenHint": "僅當您的 nextDash 伺服器要求寫介面攜帶 X-NextDash-Token 時才需要填寫。",
+  "settingWriteTokenHint": "擴充功能存取必須設定，並且要與伺服器的 NEXTDASH_WRITE_TOKEN 相同。",
   "tagsPlaceholder": "work, personal, dev",
   "shortcutPlaceholder": "自動根據名稱生成",
   "notePlaceholder": "可選備註",
@@ -68,5 +68,6 @@
   "previewCleared": "連結預覽已清除。",
   "previewUntitled": "無標題",
   "previewStatusCheck": "···",
-  "moreOptions": "更多選項"
+  "moreOptions": "更多選項",
+  "msgAuthRequired": "驗證失敗。請在擴充功能設定中填入與伺服器 NEXTDASH_WRITE_TOKEN 相同的 Write Token。"
 }

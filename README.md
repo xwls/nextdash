@@ -4,7 +4,7 @@
 
 # nextDash
 
-**A keyboard-first, self-hosted bookmark dashboard. No accounts, no cloud, no noise.**
+**A keyboard-first, self-hosted bookmark dashboard. Single-admin login, no cloud, no noise.**
 
 Self-host on any machine or container. Open it in your browser, organise bookmarks across multiple pages, and navigate everything from your keyboard. Based on [ThinkDashboard](https://github.com/MatiasDesuu/ThinkDashboard) by MatiasDesuu.
 
@@ -39,11 +39,31 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - PORT=8080
-      # Optional on LAN/VPS — require X-NextDash-Token on destructive API calls (see Security):
-      # - NEXTDASH_WRITE_TOKEN=change-me-to-a-long-random-string
+      PORT: "8080"
+      NEXTDASH_ADMIN_USERNAME: ${NEXTDASH_ADMIN_USERNAME:-admin}
+      NEXTDASH_ADMIN_PASSWORD_HASH: ${NEXTDASH_ADMIN_PASSWORD_HASH:?Set it in .env}
+      NEXTDASH_AUTH_COOKIE_SECURE: "1"
+      NEXTDASH_WRITE_TOKEN: ${NEXTDASH_WRITE_TOKEN:-}
     restart: unless-stopped
 ```
+
+Generate the mandatory administrator password hash, then save it in an ignored `.env` file:
+
+```sh
+docker run --rm -it ghcr.io/jordibrouwer/nextdash:latest hash-password
+```
+
+```dotenv
+NEXTDASH_ADMIN_USERNAME=admin
+# Single quotes keep every $ in the PHC string literal.
+NEXTDASH_ADMIN_PASSWORD_HASH='$argon2id$v=19$m=65536,t=3,p=2$...$...'
+# Required only for the browser extension; use a long random value.
+NEXTDASH_WRITE_TOKEN=change-me-to-a-long-random-string
+```
+
+When started from source with `go run .` or the compiled binary, nextDash automatically reads `.env` from the current working directory. Existing process environment variables take precedence, and values such as the Argon2 PHC string are kept literal without `$` expansion. A malformed `.env` stops startup with a line-numbered error. Docker Compose reads the same file itself.
+
+Production requires HTTPS. For local plain-HTTP development only, set `NEXTDASH_AUTH_COOKIE_SECURE=0`.
 
 ```sh
 docker compose up -d
@@ -67,23 +87,33 @@ By default, data is stored in `./data`. Override with `NEXTDASH_DATA_DIR` (absol
 
 ## Security
 
-nextDash is built for **personal or small-team use on a trusted network**. There are no user accounts — anyone who can reach the URL can read and change data unless you add protection.
+nextDash now has **mandatory single-administrator authentication**. Startup fails closed when `NEXTDASH_ADMIN_PASSWORD_HASH` is missing, malformed, or requests excessive Argon2 resources. There is no open compatibility mode.
 
-**Do not expose nextDash directly to the public internet.** Recommended setups:
+- Username: `NEXTDASH_ADMIN_USERNAME` (default `admin`).
+- Password: an Argon2id PHC hash in `NEXTDASH_ADMIN_PASSWORD_HASH`.
+- Session: opaque in-memory cookie, idle timeout 12 hours, absolute lifetime 7 days. Restarting the process logs every browser out.
+- Cookie: `HttpOnly`, `SameSite=Lax`, `Secure` by default. Production must use HTTPS.
+- CSRF: authenticated browser writes require the Session CSRF token and a same-origin `Origin` or `Referer`.
 
-- **Private overlay network** — [Tailscale](https://tailscale.com/) or another mesh VPN so nextDash never gets a public listener.
-- **Reverse proxy with auth** — Traefik, Caddy, or nginx inside your home/lab/VPC, with HTTP basic auth, OAuth2 Proxy, or SSO in front.
-- **Local-only** — bind to `127.0.0.1` and use SSH port forwarding or a same-machine browser.
+Generate a hash without placing the plaintext password in shell history:
 
-### Optional write token (LAN / VPS)
+```sh
+go run . hash-password
+# or
+docker run --rm -it ghcr.io/jordibrouwer/nextdash:latest hash-password
+```
 
-Set environment variable `NEXTDASH_WRITE_TOKEN` to a long random string. Protected endpoints then require header `X-NextDash-Token` with that value. The dashboard injects the token automatically when you open it in a browser.
+> **Breaking upgrade:** deployments created before this authentication change will exit at startup until the administrator hash is configured. See [UPGRADING.md](UPGRADING.md).
 
-Protected actions include: **reset all data** (also requires `{"confirm":true}`), **download or import backup**, **delete page**, **bookmark preview fetch**, **bookmark ping** (`/api/ping`), **health delete / retest / merge / auto-heal / open-broken / cache-scan / update-status**, **clear or refresh all bookmark previews**, **bookmark/page/category/finder/settings saves**, **uploads** (favicon, font, icon), and **reset theme colours**.
+### Browser extension Write Token
 
-When the token is **not** set, behaviour is unchanged — everything stays open for local dev. When it **is** set, the dashboard injects the token automatically so normal browser use is unaffected. The browser extension can store the same write token in **Settings → Write token**.
+`NEXTDASH_WRITE_TOKEN` is no longer a substitute for browser login. It is an optional, separate credential only for the bundled browser extension. When configured, the extension may read pages/categories/bookmarks, add bookmarks or Inbox items, request previews, and save URL icons. It cannot access the Dashboard, settings, backups, imports, reset, maintenance health APIs, or other administrator endpoints.
 
-Outbound fetches (preview, ping, icons, auto-heal) use dial-time IP validation to block DNS-rebinding to private networks unless **allow localhost bookmarks** is enabled in settings.
+Paste the same value in **extension Settings → Write token**. If the server token is missing or the extension value does not match, the extension reports an authentication configuration error. Logged-in Dashboard writes continue to send this token as a second protection layer when it is configured.
+
+Uploaded public assets under `/data/` are also restricted: only allowlisted icon, favicon, and font files can be fetched. JSON data, backups, logs, ZIP files, temporary files, subdirectories, and directory listings are never served.
+
+**Do not expose plain HTTP to the public internet.** Put the service behind Caddy, Cloudflare Tunnel/Access, nginx, Traefik, or another HTTPS reverse proxy. A private VPN such as Tailscale remains a good additional boundary.
 
 ### Optional CORS allowlist (LAN / VPS / extension)
 
@@ -102,7 +132,7 @@ Only matching `Origin` headers receive `Access-Control-Allow-Origin` in the resp
 Structured JSON activity lines are written to the server log for bookmark mutations and status checks by default. Opens are off unless enabled.
 
 ```bash
-# Default: mutate + status (opens off)
+# Default: mutate + status + security (opens off)
 NEXTDASH_ACTIVITY_LOG=mutate,status,open   # include opens
 NEXTDASH_ACTIVITY_LOG=off                  # disable all activity logs
 
@@ -196,7 +226,7 @@ Outbound HTTP(S) dials pin resolved public IPs for ~2 minutes so a hostname cann
 
 ### Startup validation
 
-On boot, nextDash validates `PORT` (1–65535, default `8080`) and ensures `NEXTDASH_DATA_DIR` exists and is writable. Invalid config exits with a clear error before listening.
+On boot, nextDash validates the mandatory administrator Argon2id hash, `NEXTDASH_AUTH_COOKIE_SECURE`, `PORT` (1–65535, default `8080`), and that `NEXTDASH_DATA_DIR` exists and is writable. Invalid config exits with a clear error before listening.
 
 ### Production Docker example
 
@@ -206,11 +236,14 @@ Recommended LAN/VPS environment block:
 
 ```yaml
 environment:
-  - PORT=8080
-  - NEXTDASH_WRITE_TOKEN=change-me-to-a-long-random-string
-  - NEXTDASH_CORS_ORIGINS=https://dash.example.com,chrome-extension://your-extension-id
-  - NEXTDASH_ACTIVITY_LOG=mutate,status,security
-  - NEXTDASH_ACTIVITY_LOG_PERSIST=1
+  PORT: "8080"
+  NEXTDASH_ADMIN_USERNAME: admin
+  NEXTDASH_ADMIN_PASSWORD_HASH: ${NEXTDASH_ADMIN_PASSWORD_HASH:?Set it in .env}
+  NEXTDASH_AUTH_COOKIE_SECURE: "1"
+  NEXTDASH_WRITE_TOKEN: ${NEXTDASH_WRITE_TOKEN:-}
+  NEXTDASH_CORS_ORIGINS: https://dash.example.com,chrome-extension://your-extension-id
+  NEXTDASH_ACTIVITY_LOG: mutate,status,security
+  NEXTDASH_ACTIVITY_LOG_PERSIST: "1"
   # Optional tuning:
   # - NEXTDASH_OUTBOUND_REQUESTS_PER_MIN=120
   # - NEXTDASH_SSRF_API_RATE_PER_MIN=60
@@ -226,9 +259,12 @@ environment:
 |----------|---------|---------|
 | `PORT` | `8080` | HTTP listen port (validated 1–65535) |
 | `NEXTDASH_DATA_DIR` | `./data` | Pages, bookmarks, settings, uploads |
-| `NEXTDASH_WRITE_TOKEN` | *(unset)* | Require `X-NextDash-Token` on write/destructive APIs |
+| `NEXTDASH_ADMIN_USERNAME` | `admin` | Single administrator login name |
+| `NEXTDASH_ADMIN_PASSWORD_HASH` | **required** | Argon2id PHC password hash; invalid or missing values stop startup |
+| `NEXTDASH_AUTH_COOKIE_SECURE` | `1` | `1` for HTTPS; set `0` only for local plain-HTTP development |
+| `NEXTDASH_WRITE_TOKEN` | *(unset)* | Browser-extension credential and optional second layer for Dashboard writes |
 | `NEXTDASH_CORS_ORIGINS` | `*` | Comma-separated `Origin` allowlist for API CORS |
-| `NEXTDASH_ACTIVITY_LOG` | `mutate,status` | `off`, `mutate`, `status`, `open`, `security` (comma-separated) |
+| `NEXTDASH_ACTIVITY_LOG` | `mutate,status,security` | `off`, `mutate`, `status`, `open`, `security` (comma-separated) |
 | `NEXTDASH_ACTIVITY_LOG_PERSIST` | off | `1` = rotate `activity.log` under data dir |
 | `NEXTDASH_ACTIVITY_LOG_FILE` | `data/activity.log` | Custom activity log path |
 | `NEXTDASH_OUTBOUND_REQUESTS_PER_MIN` | `120` | Rate limit for server outbound fetches |
@@ -478,7 +514,7 @@ The **nextDash Bookmark Saver** extension (`extension/`) lets you save the curre
 1. Click the extension icon
 2. Open the **Settings** tab
 3. Enter your nextDash server URL (e.g. `http://localhost:8080`)
-4. If the server uses `NEXTDASH_WRITE_TOKEN`, paste the same value under **Write token (optional)**
+4. The extension requires `NEXTDASH_WRITE_TOKEN`; paste the same value under **Write token**
 5. Choose a default page and save
 
 ### Save tab

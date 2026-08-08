@@ -13,9 +13,9 @@
   "labelServerUrl": "URL nextDash :",
   "labelDefaultPage": "Page par défaut :",
   "labelDefaultCategory": "Catégorie par défaut :",
-  "labelWriteToken": "Jeton d'écriture (optionnel) :",
+  "labelWriteToken": "Jeton d'écriture (requis) :",
   "writeTokenPlaceholder": "Identique à NEXTDASH_WRITE_TOKEN sur le serveur",
-  "settingWriteTokenHint": "Uniquement si votre serveur nextDash exige X-NextDash-Token pour les API d'écriture.",
+  "settingWriteTokenHint": "Requis pour l'extension. Il doit correspondre à NEXTDASH_WRITE_TOKEN sur le serveur.",
   "tagsPlaceholder": "travail, perso, dev",
   "shortcutPlaceholder": "Auto depuis le nom",
   "notePlaceholder": "Note optionnelle",
@@ -68,5 +68,6 @@
   "previewCleared": "Aperçu du lien effacé.",
   "previewUntitled": "Sans titre",
   "previewStatusCheck": "···",
-  "moreOptions": "Plus d'options"
+  "moreOptions": "Plus d'options",
+  "msgAuthRequired": "Échec de l'authentification. Le jeton de l'extension doit correspondre à NEXTDASH_WRITE_TOKEN sur le serveur."
 }

@@ -13,9 +13,9 @@
   "labelServerUrl": "nextDash URL:",
   "labelDefaultPage": "Default Page:",
   "labelDefaultCategory": "Default Category:",
-  "labelWriteToken": "Write token (optional):",
+  "labelWriteToken": "Write token (required):",
   "writeTokenPlaceholder": "Same as NEXTDASH_WRITE_TOKEN on server",
-  "settingWriteTokenHint": "Only needed when your nextDash server requires X-NextDash-Token for write API calls.",
+  "settingWriteTokenHint": "Required for extension access. It must match NEXTDASH_WRITE_TOKEN on the server.",
   "tagsPlaceholder": "work, personal, dev",
   "shortcutPlaceholder": "Auto from name",
   "notePlaceholder": "Optional note",
@@ -68,5 +68,6 @@
   "previewCleared": "Link preview cleared.",
   "previewUntitled": "Untitled",
   "previewStatusCheck": "···",
-  "moreOptions": "More options"
+  "moreOptions": "More options",
+  "msgAuthRequired": "Authentication failed. Configure the extension Write Token to match NEXTDASH_WRITE_TOKEN on the server."
 }

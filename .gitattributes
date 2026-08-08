@@ -19,3 +19,8 @@ playwright.config.js merge=ours
 ca_profile.xml merge=ours
 favicon.ico merge=ours
 favicon.png merge=ours
+
+# Shell scripts run inside Linux containers and must not use CRLF.
+*.sh text eol=lf
+Dockerfile text eol=lf
+.gitattributes text eol=lf

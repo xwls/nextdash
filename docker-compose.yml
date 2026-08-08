@@ -1,5 +1,5 @@
 # Development Docker Compose — mounts ./static, ./templates, ./locales for live assets without rebuild.
-# For production from a checkout, use docker-compose.prod.yml (image assets only).
+# First create .env and set NEXTDASH_ADMIN_PASSWORD_HASH (see README.md).
 services:
   nextdash:
     build: .
@@ -12,15 +12,15 @@ services:
       - ./locales:/app/locales
       - ./templates:/app/templates
     environment:
-      - PORT=8080
+      PORT: "8080"
+      NEXTDASH_ADMIN_USERNAME: ${NEXTDASH_ADMIN_USERNAME:-admin}
+      NEXTDASH_ADMIN_PASSWORD_HASH: ${NEXTDASH_ADMIN_PASSWORD_HASH:?Set NEXTDASH_ADMIN_PASSWORD_HASH in .env}
+      # Development only: the local URL is plain HTTP.
+      NEXTDASH_AUTH_COOKIE_SECURE: "0"
       # Live static mounts: re-hash assets on every read so ?v= tokens track edits.
-      - NEXTDASH_STATIC_MUTABLE=1
-      # Disable privacy-friendly usage analytics for the whole instance.
-      # When true, nothing is sent and the Privacy toggle in Config is
-      # disabled until this is unset again.
+      NEXTDASH_STATIC_MUTABLE: "1"
+      # Browser extension credential. Required only when using the extension.
+      NEXTDASH_WRITE_TOKEN: ${NEXTDASH_WRITE_TOKEN:-}
       # - DISABLE_TELEMETRY=true
-      # Optional: require X-NextDash-Token on destructive/write API calls (reset, import, colors reset, delete page, health write endpoints, clear/refresh previews)
-      # - NEXTDASH_WRITE_TOKEN=change-me
     restart: unless-stopped
     container_name: nextdash
-    

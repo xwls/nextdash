@@ -13,9 +13,9 @@
   "labelServerUrl": "nextDash-URL:",
   "labelDefaultPage": "Standaardpagina:",
   "labelDefaultCategory": "Standaardcategorie:",
-  "labelWriteToken": "Schrijftoken (optioneel):",
+  "labelWriteToken": "Schrijftoken (vereist):",
   "writeTokenPlaceholder": "Zelfde als NEXTDASH_WRITE_TOKEN op de server",
-  "settingWriteTokenHint": "Alleen nodig als je nextDash-server X-NextDash-Token vereist voor schrijf-API's.",
+  "settingWriteTokenHint": "Vereist voor extensietoegang. Moet overeenkomen met NEXTDASH_WRITE_TOKEN op de server.",
   "tagsPlaceholder": "werk, privé, dev",
   "shortcutPlaceholder": "Automatisch uit naam",
   "notePlaceholder": "Optionele notitie",
@@ -68,5 +68,6 @@
   "previewCleared": "Link preview gewist.",
   "previewUntitled": "Naamloos",
   "previewStatusCheck": "···",
-  "moreOptions": "Meer opties"
+  "moreOptions": "Meer opties",
+  "msgAuthRequired": "Authenticatie mislukt. De schrijftoken van de extensie moet overeenkomen met NEXTDASH_WRITE_TOKEN op de server."
 }

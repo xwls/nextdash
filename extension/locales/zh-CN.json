@@ -13,9 +13,9 @@
   "labelServerUrl": "nextDash 网址：",
   "labelDefaultPage": "默认页面：",
   "labelDefaultCategory": "默认分类：",
-  "labelWriteToken": "写入令牌（可选）：",
+  "labelWriteToken": "写入令牌（必填）：",
   "writeTokenPlaceholder": "与服务端的 NEXTDASH_WRITE_TOKEN 相同",
-  "settingWriteTokenHint": "仅当您的 nextDash 服务器要求写接口携带 X-NextDash-Token 时才需要填写。",
+  "settingWriteTokenHint": "扩展访问必须配置，并且要与服务器的 NEXTDASH_WRITE_TOKEN 一致。",
   "tagsPlaceholder": "work, personal, dev",
   "shortcutPlaceholder": "自动根据名称生成",
   "notePlaceholder": "可选备注",
@@ -68,5 +68,6 @@
   "previewCleared": "链接预览已清除。",
   "previewUntitled": "无标题",
   "previewStatusCheck": "···",
-  "moreOptions": "更多选项"
+  "moreOptions": "更多选项",
+  "msgAuthRequired": "认证失败。请在扩展设置中填写与服务器 NEXTDASH_WRITE_TOKEN 一致的 Write Token。"
 }

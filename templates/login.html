@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 · nextDash</title>
+    <link rel="icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/css/login.css">
+</head>
+<body>
+    <main class="login-shell">
+        <section class="login-card" aria-labelledby="login-title">
+            <div class="login-brand" aria-hidden="true">nextDash</div>
+            <h1 id="login-title">管理员登录</h1>
+            <p class="login-subtitle">登录后继续访问你的 Dashboard。</p>
+            {{if .Error}}<div class="login-error" role="alert">{{.Error}}</div>{{end}}
+            <form action="/login" method="post" autocomplete="on">
+                <input type="hidden" name="next" value="{{.Next}}">
+                <label for="username">用户名</label>
+                <input id="username" name="username" type="text" value="{{.Username}}" autocomplete="username" required autofocus>
+                <label for="password">密码</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+                <button type="submit">登录</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

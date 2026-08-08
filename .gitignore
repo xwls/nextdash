@@ -37,3 +37,4 @@ nextDash
 main
 scripts/debug-config-save.mjs
 nextDash.code-workspace
+.tmp-*

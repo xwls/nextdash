@@ -53,20 +53,6 @@ async function resolveExtensionLang() {
     const stored = await chrome.storage.sync.get(['extensionLocale', 'serverUrl']);
     let lang = stored.extensionLocale;
 
-    if (!lang && stored.serverUrl) {
-        try {
-            const res = await fetch(new URL('/api/settings', stored.serverUrl));
-            if (res.ok) {
-                const settings = await res.json();
-                if (settings.language) {
-                    lang = settings.language;
-                }
-            }
-        } catch (e) {
-            // use browser locale
-        }
-    }
-
     if (!lang && typeof chrome !== 'undefined' && chrome.i18n?.getUILanguage) {
         lang = chrome.i18n.getUILanguage();
     }

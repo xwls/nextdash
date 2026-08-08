@@ -4518,3 +4518,23 @@ body.no-animations .bookmark-move-out {
 }
 
 
+
+/* Authenticated-session logout action. */
+.logout-link--icon { margin-left: 0; }
+.logout-link-button {
+    animation: none;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.5rem;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: var(--layout-radius-sm, 8px);
+    color: var(--text-secondary);
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+.logout-link-button:hover { color: var(--text-primary); }
+.logout-link-button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.logout-link-button:disabled { cursor: wait; opacity: .55; }
+.logout-link-icon { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }

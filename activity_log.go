@@ -47,8 +47,9 @@ func loadActivityLogConfig() activityLogConfig {
 	}
 
 	enabled := map[string]bool{
-		activityCategoryMutate: true,
-		activityCategoryStatus: true,
+		activityCategoryMutate:   true,
+		activityCategoryStatus:   true,
+		activityCategorySecurity: true,
 	}
 	if raw != "" {
 		enabled = map[string]bool{}

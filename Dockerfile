@@ -29,7 +29,8 @@ WORKDIR /app
 COPY --from=builder /app/main .
 COPY scripts/docker-entrypoint.sh /entrypoint.sh
 
-RUN chmod +x /entrypoint.sh \
+RUN sed -i 's/\r$//' /entrypoint.sh \
+    && chmod +x /entrypoint.sh \
     && mkdir -p /app/data && chown nextdash:nextdash /app/data
 
 EXPOSE 8080
@@ -39,4 +40,4 @@ ENV PORT=8080
 ENTRYPOINT ["/entrypoint.sh"]
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget -qO- http://127.0.0.1:8080/api/health >/dev/null || exit 1
+    CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1

@@ -21,6 +21,33 @@ import (
 var embeddedFiles embed.FS
 
 func main() {
+	if len(os.Args) > 1 {
+		if os.Args[1] == "hash-password" {
+			if len(os.Args) != 2 {
+				log.Fatalf("hash-password does not accept additional arguments")
+			}
+			if err := runHashPasswordCommand(); err != nil {
+				log.Fatalf("hash-password: %v", err)
+			}
+			return
+		}
+		log.Fatalf("unknown command %q", os.Args[1])
+	}
+
+	loadedEnv, err := loadDotEnvFile(".env")
+	if err != nil {
+		log.Fatalf("environment configuration: %v", err)
+	}
+	if loadedEnv > 0 {
+		log.Printf("Loaded %d environment variable(s) from .env", loadedEnv)
+	}
+
+	authConfig, err := loadAuthConfigFromEnv()
+	if err != nil {
+		log.Fatalf("authentication configuration: %v", err)
+	}
+	logAuthConfiguration(authConfig)
+
 	// Initialize MIME types
 	mime.AddExtensionType(".css", "text/css")
 	mime.AddExtensionType(".js", "application/javascript")
@@ -49,9 +76,17 @@ func main() {
 
 	// Initialize handlers
 	handlers := NewHandlers(store, embeddedFiles)
+	auth := newAuthService(authConfig, embeddedFiles)
 
-	// Create router
+	// Create router. SkipClean prevents mux from redirecting traversal-shaped
+	// /data/ paths before the strict asset handler can return a uniform 404.
 	r := mux.NewRouter()
+	r.SkipClean(true)
+
+	// Public authentication and liveness routes.
+	r.HandleFunc("/login", auth.login).Methods("GET", "POST")
+	r.HandleFunc("/logout", auth.logout).Methods("POST")
+	r.HandleFunc("/healthz", auth.healthz).Methods("GET", "HEAD")
 
 	// Routes
 	r.HandleFunc("/version", Version).Methods("GET")
@@ -138,9 +173,10 @@ func main() {
 	r.HandleFunc("/api/previews/refresh", handlers.RefreshAllBookmarkPreviews).Methods("POST")
 	r.HandleFunc("/api/track-open", handlers.TrackBookmarkOpen).Methods("POST")
 
-	// Data files (for uploaded favicons, etc.)
+	// Public data assets are a strict allowlist; business JSON, backups, logs,
+	// temporary files, and directory listings are never served.
 	dataDir := ResolveDataDir()
-	r.PathPrefix("/data/").Handler(http.StripPrefix("/data/", http.FileServer(http.Dir(dataDir))))
+	r.PathPrefix("/data/").Handler(safeDataAssetHandler(dataDir))
 
 	// Locales: prefer on-disk files in dev/Docker mounts, fall back to embed.
 	if info, err := os.Stat("locales"); err == nil && info.IsDir() {
@@ -169,6 +205,13 @@ func main() {
 		staticHandler.ServeHTTP(w, r)
 	})))
 
+	// Browser-extension CORS preflights are public, while the actual request is
+	// still authenticated by Session or the restricted extension token allowlist.
+	r.PathPrefix("/api/").Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		applyCORSHeaders(w, req)
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	// Get port from environment or use default
 	port, err := validateListenPort(os.Getenv("PORT"))
 	if err != nil {
@@ -177,7 +220,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              ":" + port,
-		Handler:           requestLogging(gzipMiddleware(securityHeaders(r))),
+		Handler:           requestLogging(gzipMiddleware(securityHeaders(auth.middleware(r)))),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
@@ -186,6 +229,7 @@ func main() {
 
 	// Weekly automatic local backups (keeps the latest few, respects the setting).
 	schedulerStop := make(chan struct{})
+	auth.sessions.startCleanup(schedulerStop)
 	handlers.StartAutoBackupScheduler(schedulerStop)
 	// Periodic background health rechecks (opt-in, respects the setting + interval).
 	handlers.StartHealthRecheckScheduler(schedulerStop)
