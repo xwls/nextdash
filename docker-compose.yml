@@ -4,7 +4,7 @@ services:
   nextdash:
     build: .
     ports:
-      - "8080:8080"
+      - "${NEXTDASH_HOST_PORT:-8080}:8080"
     volumes:
       - ./data:/app/data
       # Dev: serve latest JS/CSS/locales from disk (main.go prefers on-disk static/locales)

@@ -35,7 +35,7 @@ services:
     image: ghcr.io/jordibrouwer/nextdash:latest
     container_name: nextDash
     ports:
-      - "8080:8080"
+      - "${NEXTDASH_HOST_PORT:-8080}:8080"
     volumes:
       - ./data:/app/data
     environment:
@@ -54,6 +54,8 @@ docker run --rm -it ghcr.io/jordibrouwer/nextdash:latest hash-password
 ```
 
 ```dotenv
+# Docker host port; the container continues to listen on 8080.
+NEXTDASH_HOST_PORT=8080
 NEXTDASH_ADMIN_USERNAME=admin
 # Single quotes keep every $ in the PHC string literal.
 NEXTDASH_ADMIN_PASSWORD_HASH='$argon2id$v=19$m=65536,t=3,p=2$...$...'
