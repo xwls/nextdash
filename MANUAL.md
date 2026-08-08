@@ -11,7 +11,7 @@
 | 🚀 | **Install & security** | [README.md](README.md) — Docker, tokens, production setup |
 | 📋 | **Release history** | [CHANGELOG.md](CHANGELOG.md) — every version, new and fix |
 | 🗂️ | **Shortcut cheat sheet** | Press **!** or **F1** on the dashboard (live, searchable). Printable: [PDF](nextDash-cheatsheet.pdf?raw=true) / [HTML](nextDash-cheatsheet.html?raw=true) — regenerate with `npm run generate:cheatsheet`. |
-| 💬 | **Translated help** | **Config → Help** in the app (EN / NL / DE / FR) |
+| 💬 | **Translated help** | **Config → Help** in the app (EN / NL / DE / FR / ZH-CN / ZH-TW) |
 
 This manual is for new users and anyone who wants a structured reference. It goes deeper than the README and mirrors the in-app Help topics.
 
@@ -1080,7 +1080,7 @@ Below **Help**, separated by a gap, **Find settings** opens the settings-jump ov
 | **Behavior** | General, date & weather, search, status, and privacy — five sub-tabs |
 | **Data & backups** | Backup, restore, import, export — plus **Reset** on its own tab |
 | **Statistics** | Usage insights across five sub-tabs |
-| **Help** | In-app documentation (EN/NL/DE/FR) across seven sub-tabs |
+| **Help** | In-app documentation (EN/NL/DE/FR/ZH-CN/ZH-TW) across seven sub-tabs |
 
 ### Saving
 
@@ -1645,7 +1645,7 @@ Docker: mounted volume (e.g. `./data`). Binary: `./data` next to the executable.
 |---|----------|----------|
 | 🚀 | [README.md](README.md) | Install, security, Docker, and feature overview |
 | 📋 | [CHANGELOG.md](CHANGELOG.md) | Complete release history (new / fix) |
-| 💬 | **Config → Help** | Same topics as this manual, translated (EN/NL/DE/FR), with anchor links, **Browser extension**, **Security & self-hosting**, and a **What's new** recap |
+| 💬 | **Config → Help** | Same topics as this manual, translated (EN/NL/DE/FR/ZH-CN/ZH-TW), with anchor links, **Browser extension**, **Security & self-hosting**, and a **What's new** recap |
 | ★ | **In-app What's new** | Latest release first; scroll for up to **50 recent** versions (each loads on demand with a skeleton while fetching) |
 
 ---

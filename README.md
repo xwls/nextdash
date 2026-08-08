@@ -343,7 +343,7 @@ The settings a self-hoster reaches for most: **Behavior → General** (localhost
 
 **ℹ and ↺** — many controls carry an **ℹ** explaining the setting and a **↺** restoring its default.
 
-**Keyboard** — sub-tab strips follow the ARIA tabs pattern: **`←`/`→`** move and wrap, **`Home`**/**`End`** jump to the ends. Explanations behind **ℹ** are localised (EN / NL / DE / FR).
+**Keyboard** — sub-tab strips follow the ARIA tabs pattern: **`←`/`→`** move and wrap, **`Home`**/**`End`** jump to the ends. Explanations behind **ℹ** are localised (EN / NL / DE / FR / ZH-CN / ZH-TW).
 
 **Branding & PWA** — Custom title and favicon under Advanced → Branding apply to the browser tab, the web app manifest (`/manifest.webmanifest`), and “Add to Home Screen” / installed PWA name and icon. **Advanced → HyprMode** includes an **Add to home screen** panel with platform steps and a browser install button when available.
 
@@ -445,7 +445,7 @@ Dynamic bookmark groups that appear automatically:
 
 ### Localisation
 
-Full UI translations available for English, Dutch, German, and French.
+Full UI translations available for English, Dutch, German, French, Simplified Chinese (zh-CN), and Traditional Chinese (zh-TW).
 
 ---
 

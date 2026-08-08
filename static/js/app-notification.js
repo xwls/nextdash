@@ -64,7 +64,7 @@ const AppNotification = {
             }
         }
         const lang = document.documentElement.getAttribute('data-lang') || 'en';
-        const fallbacks = { en: 'Reload page', nl: 'Pagina herladen', de: 'Seite neu laden', fr: 'Recharger la page' };
+        const fallbacks = { en: 'Reload page', nl: 'Pagina herladen', de: 'Seite neu laden', fr: 'Recharger la page', 'zh-CN': '重新加载页面', 'zh-TW': '重新載入頁面' };
         return fallbacks[lang] || fallbacks.en;
     },
 

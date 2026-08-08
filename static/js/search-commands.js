@@ -252,6 +252,8 @@ class SearchCommandsComponent {
         { id: 'nl', labelKey: 'commands.langNl', fallback: 'Nederlands' },
         { id: 'de', labelKey: 'commands.langDe', fallback: 'Deutsch' },
         { id: 'fr', labelKey: 'commands.langFr', fallback: 'Français' },
+        { id: 'zh-CN', labelKey: 'commands.langZhCN', fallback: '简体中文' },
+        { id: 'zh-TW', labelKey: 'commands.langZhTW', fallback: '繁體中文' },
     ];
 
     _OPACITY_PRESETS = [0.65, 0.75, 0.85, 0.95, 1];
@@ -3275,10 +3277,11 @@ class SearchCommandsComponent {
 
         const query = (args[0] || '').toLowerCase();
         const current = String(dashboard.settings.language || 'en').toLowerCase();
+        const byId = (id) => String(id).toLowerCase();
 
         if (!query) {
             return this._LANG_OPTIONS.map((entry) => ({
-                name: this._markCurrent(this._t(entry.labelKey, entry.fallback), entry.id === current),
+                name: this._markCurrent(this._t(entry.labelKey, entry.fallback), byId(entry.id) === current),
                 shortcut: ':LANG',
                 stateId: `lang:${entry.id}`,
                 completion: `:lang ${entry.id} `,
@@ -3287,7 +3290,7 @@ class SearchCommandsComponent {
             }));
         }
 
-        const exact = this._LANG_OPTIONS.find((entry) => entry.id === query);
+        const exact = this._LANG_OPTIONS.find((entry) => byId(entry.id) === query);
         if (exact) {
             return [{
                 name: this._t(exact.labelKey, exact.fallback),
@@ -3298,11 +3301,11 @@ class SearchCommandsComponent {
             }];
         }
 
-        const matches = this._LANG_OPTIONS.filter((entry) => entry.id.startsWith(query));
+        const matches = this._LANG_OPTIONS.filter((entry) => byId(entry.id).startsWith(query));
         if (matches.length === 0) return [];
 
         return matches.map((entry) => ({
-            name: this._markCurrent(this._t(entry.labelKey, entry.fallback), entry.id === current),
+            name: this._markCurrent(this._t(entry.labelKey, entry.fallback), byId(entry.id) === current),
             shortcut: ':LANG',
             stateId: `lang:${entry.id}`,
             type: 'command',

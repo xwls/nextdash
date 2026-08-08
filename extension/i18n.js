@@ -1,12 +1,35 @@
-/* Extension UI translations (en / nl / de / fr) */
+/* Extension UI translations (en / nl / de / fr / zh-CN / zh-TW) */
 
-const EXT_SUPPORTED = new Set(['en', 'nl', 'de', 'fr']);
+const EXT_LANGUAGE_MAP = new Map([
+    ['en', 'en'],
+    ['nl', 'nl'],
+    ['de', 'de'],
+    ['fr', 'fr'],
+    ['zh', 'zh-CN'],
+    ['zh-cn', 'zh-CN'],
+    ['zh-hans', 'zh-CN'],
+    ['zh-sg', 'zh-CN'],
+    ['zh-my', 'zh-CN'],
+    ['zh-tw', 'zh-TW'],
+    ['zh-hant', 'zh-TW'],
+    ['zh-hk', 'zh-TW'],
+    ['zh-mo', 'zh-TW'],
+]);
 let extStrings = {};
 let extLang = 'en';
 
 function extNormalizeLang(code) {
-    const base = String(code || 'en').toLowerCase().split('-')[0];
-    return EXT_SUPPORTED.has(base) ? base : 'en';
+    const lower = String(code || 'en').toLowerCase();
+    const direct = EXT_LANGUAGE_MAP.get(lower);
+    if (direct) return direct;
+
+    const parts = lower.split('-');
+    if (parts[0] === 'zh') {
+        if (parts.includes('hant')) return 'zh-TW';
+        if (parts.includes('hans')) return 'zh-CN';
+        return parts.some((part) => ['tw', 'hk', 'mo'].includes(part)) ? 'zh-TW' : 'zh-CN';
+    }
+    return EXT_LANGUAGE_MAP.get(parts[0]) || 'en';
 }
 
 function extInterpolate(text, vars) {
