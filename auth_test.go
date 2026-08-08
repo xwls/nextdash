@@ -12,6 +12,14 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+type loginThemeStoreStub struct {
+	settings Settings
+	colors   ColorTheme
+}
+
+func (s loginThemeStoreStub) GetSettings() Settings { return s.settings }
+func (s loginThemeStoreStub) GetColors() ColorTheme { return s.colors }
+
 func fastTestAuthService(t *testing.T, secure bool) *authService {
 	t.Helper()
 	salt := []byte("test-salt-123456")
@@ -23,7 +31,7 @@ func fastTestAuthService(t *testing.T, secure bool) *authService {
 		salt:        salt,
 		hash:        argon2.IDKey(password, salt, 1, 32, 1, 16),
 	}
-	return newAuthService(authConfig{username: "admin", passwordHash: parsed, cookieSecure: secure}, embeddedFiles)
+	return newAuthService(authConfig{username: "admin", passwordHash: parsed, cookieSecure: secure}, embeddedFiles, nil)
 }
 
 func loginRequest(t *testing.T, auth *authService, next string) *httptest.ResponseRecorder {
@@ -85,6 +93,42 @@ func TestSafeNextPathRejectsExternalRedirects(t *testing.T) {
 	}
 	if got := safeNextPath("/health?q=broken"); got != "/health?q=broken" {
 		t.Fatalf("safe relative target changed: %q", got)
+	}
+}
+
+func TestLoginPageUsesConfiguredTheme(t *testing.T) {
+	auth := fastTestAuthService(t, false)
+	colors := getDefaultColors()
+	auth.themeStore = loginThemeStoreStub{
+		settings: Settings{
+			Theme:              "electric-orchid-light",
+			AutoDarkMode:       true,
+			RandomThemeMode:    "refresh",
+			ShowBackgroundDots: false,
+		},
+		colors: colors,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/login", nil)
+	rr := httptest.NewRecorder()
+	auth.login(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("login page returned %d", rr.Code)
+	}
+
+	body := rr.Body.String()
+	for _, want := range []string{
+		`data-theme="electric-orchid-light"`,
+		`data-auto-dark-mode="true"`,
+		`data-random-theme-mode="refresh"`,
+		`data-show-background-dots="false"`,
+		`content="` + colors.BuiltIn["electric-orchid-light"].BackgroundPrimary + `"`,
+		`href="/api/theme.css"`,
+		`src="/static/js/theme-loader.js"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("login page missing %q", want)
+		}
 	}
 }
 
@@ -267,6 +311,7 @@ func TestAuthMiddlewareAllowsOnlyDeclaredPublicRoutes(t *testing.T) {
 		"/manifest.webmanifest",
 		"/push-service-worker.js",
 		"/static/css/login.css",
+		"/api/theme.css",
 		"/locales/en.json",
 		"/data/favicon.png",
 	}

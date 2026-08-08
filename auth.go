@@ -227,16 +227,29 @@ func csrfTokenFromRequest(r *http.Request) string {
 	return ""
 }
 
+type loginThemeStore interface {
+	GetSettings() Settings
+	GetColors() ColorTheme
+}
+
 type authService struct {
 	config         authConfig
 	sessions       *sessionManager
 	failures       *loginFailureState
 	files          embed.FS
+	themeStore     loginThemeStore
 	passwordChecks chan struct{}
 }
 
-func newAuthService(config authConfig, files embed.FS) *authService {
-	return &authService{config: config, sessions: newSessionManager(), failures: newLoginFailureState(), files: files, passwordChecks: make(chan struct{}, 1)}
+func newAuthService(config authConfig, files embed.FS, themeStore loginThemeStore) *authService {
+	return &authService{
+		config:         config,
+		sessions:       newSessionManager(),
+		failures:       newLoginFailureState(),
+		files:          files,
+		themeStore:     themeStore,
+		passwordChecks: make(chan struct{}, 1),
+	}
 }
 
 func constantTimeStringEqual(a, b string) bool {
@@ -269,9 +282,39 @@ func loginFailureKey(r *http.Request, username string) string {
 }
 
 type loginPageData struct {
-	Username string
-	Next     string
-	Error    string
+	Username           string
+	Next               string
+	Error              string
+	Theme              string
+	AutoDarkMode       bool
+	RandomThemeMode    string
+	ThemePoolCSV       string
+	CustomThemeIDsCSV  string
+	ShowBackgroundDots bool
+	ThemeColorMeta     string
+}
+
+func (a *authService) withLoginTheme(data loginPageData) loginPageData {
+	settings := Settings{
+		Theme:              "dark",
+		RandomThemeMode:    "off",
+		ShowBackgroundDots: true,
+	}
+	colors := getDefaultColors()
+	if a.themeStore != nil {
+		settings = a.themeStore.GetSettings()
+		colors = a.themeStore.GetColors()
+	}
+
+	themeID := normalizeLegacyThemeID(settings.Theme)
+	data.Theme = themeID
+	data.AutoDarkMode = settings.AutoDarkMode
+	data.RandomThemeMode = normalizeRandomThemeMode(settings.RandomThemeMode, settings.RandomThemeOnRefresh)
+	data.ThemePoolCSV = themePoolCSV(colors)
+	data.CustomThemeIDsCSV = customThemeIDsCSV(colors)
+	data.ShowBackgroundDots = settings.ShowBackgroundDots
+	data.ThemeColorMeta = themeBackgroundPrimary(themeID, colors)
+	return data
 }
 
 func (a *authService) parseLoginTemplate() (*template.Template, error) {
@@ -282,6 +325,7 @@ func (a *authService) parseLoginTemplate() (*template.Template, error) {
 }
 
 func (a *authService) renderLogin(w http.ResponseWriter, status int, data loginPageData) {
+	data = a.withLoginTheme(data)
 	tmpl, err := a.parseLoginTemplate()
 	if err != nil {
 		http.Error(w, "Template parsing error", http.StatusInternalServerError)
@@ -394,6 +438,9 @@ func isPublicRoute(r *http.Request) bool {
 		return true
 	}
 	if path == "/login" || path == "/healthz" || path == "/manifest.webmanifest" || path == "/push-service-worker.js" {
+		return true
+	}
+	if path == "/api/theme.css" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
 		return true
 	}
 	return strings.HasPrefix(path, "/static/") || strings.HasPrefix(path, "/locales/") || strings.HasPrefix(path, "/data/")

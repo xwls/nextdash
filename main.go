@@ -76,7 +76,7 @@ func main() {
 
 	// Initialize handlers
 	handlers := NewHandlers(store, embeddedFiles)
-	auth := newAuthService(authConfig, embeddedFiles)
+	auth := newAuthService(authConfig, embeddedFiles, store)
 
 	// Create router. SkipClean prevents mux from redirecting traversal-shaped
 	// /data/ paths before the strict asset handler can return a uniform 404.
