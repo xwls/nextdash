@@ -495,10 +495,8 @@ class DashboardBookmarkRows {
 
         const openLink = document.createElement('a');
         openLink.className = 'bookmark-open';
-        /* Anchors are natively draggable; left on, a desktop row drag would start a
-           useless "drag the URL" gesture instead of the DragReorder move. Mouse users
-           can grab the whole row, while coarse pointers use the lead-area handle, so
-           the link itself must not be draggable. */
+        /* Anchors are natively draggable; leave this off so dragging outside the
+           adjacent lead-area reorder handle cannot start a useless native URL drag. */
         openLink.draggable = false;
         const safeHref = d.safeBookmarkOpenHref(bookmark.url);
         openLink.href = safeHref || '#';

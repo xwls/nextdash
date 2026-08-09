@@ -840,7 +840,7 @@ body[data-side-margin="airy"] {
 }
 
 #dashboard-layout.tag-filter-view .tag-filter-chunk .bookmark-reorder-handle {
-    display: block !important;
+    display: none !important;
 }
 
 #dashboard-layout.tag-filter-view .tag-filter-chunk .bookmark-shortcut {
@@ -1887,8 +1887,7 @@ body[data-layout-preset="launcher"] .dashboard-grid {
     transform: translateY(-2px);
 }
 
-/* Stretched-link: transparent ::before overlay covers the whole tile so
-   clicking the icon or anywhere on the tile triggers the <a> */
+/* Stretched-link: cover the tile outside the dedicated lead-area reorder handle. */
 .layout-launcher .bookmark-open::before {
     content: '';
     position: absolute;
@@ -1897,7 +1896,6 @@ body[data-layout-preset="launcher"] .dashboard-grid {
     z-index: 1;
 }
 
-.layout-launcher .bookmark-reorder-handle,
 .layout-launcher .bookmark-shortcut,
 .layout-launcher .bookmark-note-badge,
 .layout-launcher .bookmark-pin-badge,
@@ -2646,29 +2644,51 @@ a.bookmark-open:hover {
     gap: 0.35rem;
     min-width: 1.15em;
     min-height: 1.15em;
-    cursor: grab;
-}
-
-.bookmarks-list[data-smart-collection="true"] .bookmark-lead {
-    cursor: default;
 }
 
 .bookmark-reorder-handle {
     position: absolute;
     inset: 0;
+    z-index: 2;
+    border: 1px solid transparent;
     border-radius: 3px;
-    cursor: grab;
+    cursor: default;
     touch-action: none;
     background: transparent;
     opacity: 0;
     box-sizing: border-box;
+    transition: opacity 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 
-.bookmark-link:hover .bookmark-reorder-handle {
-    opacity: 0.55;
+.bookmarks-list.reorder-container .bookmark-reorder-handle {
+    cursor: grab;
 }
 
-.bookmark-reorder-handle:active {
+.bookmarks-list.reorder-container .bookmark-link:hover .bookmark-reorder-handle {
+    opacity: 1;
+    border-color: color-mix(in srgb, var(--text-secondary) 22%, transparent);
+    background: color-mix(in srgb, var(--text-secondary) 7%, transparent);
+}
+
+/* Keep a visible drag affordance when bookmark icons are disabled. Scope it to
+   active reorder containers so locked sorts and non-reorder views stay silent. */
+.bookmarks-list.reorder-container .bookmark-lead:not(:has(.bookmark-icon-slot)) .bookmark-reorder-handle {
+    opacity: 0.5;
+}
+
+.bookmarks-list.reorder-container .bookmark-lead:not(:has(.bookmark-icon-slot)) .bookmark-reorder-handle::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 15px;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, currentColor 1.2px, transparent 1.4px) 0 0 / 5px 5px;
+    pointer-events: none;
+}
+
+.bookmarks-list.reorder-container .bookmark-reorder-handle:active {
     cursor: grabbing;
 }
 
@@ -2700,10 +2720,6 @@ a.bookmark-open:hover {
         height: 44px;
         transform: translate(-50%, -50%);
         z-index: 2;
-    }
-
-    .layout-launcher .bookmarks-list.reorder-container .bookmark-reorder-handle {
-        display: block !important;
     }
 }
 

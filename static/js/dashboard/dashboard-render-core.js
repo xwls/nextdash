@@ -567,12 +567,11 @@ class DashboardRenderCore {
             const reorderInstance = new DragReorder({
                 container: listElement,
                 itemSelector: '.bookmark-link',
-                /* Mouse users can grab the whole row; coarse-pointer devices start
-                   only from the icon/lead handle so vertical page scrolling wins
-                   everywhere else. The row's <a> stays draggable=false to prevent
-                   native URL drag from hijacking desktop reorder. */
-                handleSelector: null,
-                touchHandleSelector: '.bookmark-reorder-handle',
+                /* All input types start from the icon/lead handle. This keeps the
+                   bookmark body available for opening, selecting, scrolling, and
+                   navigation. The row's <a> stays draggable=false to prevent native
+                   URL drag from hijacking desktop interactions. */
+                handleSelector: '.bookmark-reorder-handle',
                 longPressMs: 0,
                 touchConfirmMs: 0,
                 delegateItemDragOver: true,
