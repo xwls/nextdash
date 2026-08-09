@@ -199,7 +199,7 @@ body[data-layout-version="classic"] .page-swipe-hint {
     }
 
     .dashboard-mini-status {
-        display: block;
+        display: none;
     }
 
     .search-flow-hint .sfh-seg-swipe.hidden {
