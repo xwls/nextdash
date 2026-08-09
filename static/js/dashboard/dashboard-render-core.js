@@ -620,12 +620,17 @@ class DashboardRenderCore {
         };
 
         // Only a genuine drag gesture (press + move past a small threshold) gets the
-        // toast — a plain click that opens the bookmark must stay silent. The rows
-        // aren't draggable here, so we detect the intent from raw pointer events.
+        // toast — a plain click that opens the bookmark must stay silent. Touch rows
+        // remain scroll surfaces; mobile reordering starts from a handle, which is
+        // hidden while sorted order owns the category.
         let startX = 0;
         let startY = 0;
         let armed = false;
         listElement.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'touch') {
+                armed = false;
+                return;
+            }
             if (e.button !== undefined && e.button !== 0) {
                 return;
             }
