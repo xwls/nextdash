@@ -977,6 +977,10 @@ body[data-side-margin="airy"] {
     display: none;
 }
 
+.page-swipe-hint[hidden] {
+    display: none;
+}
+
 .page-nav-inbox-host {
     display: flex;
     align-items: center;

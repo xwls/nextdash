@@ -148,6 +148,10 @@ kbd,
     max-width: 100%;
 }
 
+.dashboard-mini-status[hidden] {
+    display: none;
+}
+
 .dashboard-mini-status .mini-sep {
     opacity: 0.45;
     margin: 0 0.35em;

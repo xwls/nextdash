@@ -605,16 +605,10 @@ class DashboardToolbar {
 
 
     updateMiniStatusLine() {
-        const d = this.dash;
         const el = document.getElementById('dashboard-mini-status');
         if (!el) return;
-        const dateLine = document.querySelector('.date-time-line')?.textContent?.trim() || '';
-        const page = d.pages.find((p) => p.id === d.currentPageId);
-        const pageName = page?.name || '';
         const badge = document.querySelector('.health-link a .health-badge');
         const parts = [];
-        if (dateLine) parts.push(dateLine);
-        if (pageName) parts.push(pageName);
         if (badge) {
             const badgeText = badge.textContent.trim();
             if (badgeText) parts.push(badgeText);
