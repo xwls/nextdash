@@ -2676,6 +2676,37 @@ a.bookmark-open:hover {
     display: none;
 }
 
+/* Coarse pointers reorder only from the existing icon/lead area. Keep the
+   transparent handle off the bookmark text so vertical scrolling stays native. */
+@media (pointer: coarse) {
+    .bookmarks-list.reorder-container {
+        --bookmark-lead-col: 44px;
+    }
+
+    .bookmarks-list.reorder-container .bookmark-link {
+        min-height: 44px;
+    }
+
+    .bookmarks-list.reorder-container .bookmark-lead {
+        min-width: 44px;
+        justify-content: center;
+    }
+
+    .bookmarks-list.reorder-container .bookmark-reorder-handle {
+        inset: auto;
+        top: 50%;
+        left: 50%;
+        width: 44px;
+        height: 44px;
+        transform: translate(-50%, -50%);
+        z-index: 2;
+    }
+
+    .layout-launcher .bookmarks-list.reorder-container .bookmark-reorder-handle {
+        display: block !important;
+    }
+}
+
 .bookmark-link.bookmark-longpress-armed {
     user-select: none;
 }

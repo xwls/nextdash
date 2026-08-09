@@ -5,8 +5,10 @@
  * const reorder = new DragReorder({
  *   container: '#my-list',           // Container selector
  *   itemSelector: '.my-item',        // Item selector (optional, defaults to children)
- *   handleSelector: '.drag-handle',  // Drag handle selector (optional, makes entire item draggable if not provided)
- *   onReorder: (newOrder) => {       // Callback when order changes
+ *   handleSelector: '.drag-handle',       // Mouse handle (optional; defaults to the item)
+ *   touchHandleSelector: '.touch-handle', // Touch-only handle (optional; falls back to handleSelector)
+ *   touchConfirmMs: 125,                  // Touch confirmation delay (optional)
+ *   onReorder: (newOrder) => {            // Callback when order changes
  *     console.log('New order:', newOrder);
  *   }
  * });
@@ -25,13 +27,20 @@ class DragReorder {
 
         this.itemSelector = options.itemSelector || null;
         this.handleSelector = options.handleSelector || null;
+        this.touchHandleSelector = Object.prototype.hasOwnProperty.call(options, 'touchHandleSelector')
+            ? options.touchHandleSelector
+            : this.handleSelector;
         this.delegateItemDragOver = Boolean(options.delegateItemDragOver);
         this.touchContainerSelector = options.touchContainerSelector || '.bookmarks-list[data-category-id]';
         this.onReorder = options.onReorder || null;
         this.longPressMs = Number.isFinite(Number(options.longPressMs)) ? Math.max(0, Number(options.longPressMs)) : 0;
+        this.touchConfirmMs = Number.isFinite(Number(options.touchConfirmMs))
+            ? Math.max(0, Number(options.touchConfirmMs))
+            : this.longPressMs;
         this.itemClass = options.itemClass || 'reorder-item';
         this.selected = null;
         this.dragStartMeta = null;
+        this.dragStartPosition = null;
         /* 'ontouchstart' in window is true on many desktop Chromes → wrong branch, no HTML5 drag. */
         this.useCoarsePointerDrag = (() => {
             try {
@@ -54,7 +63,7 @@ class DragReorder {
         this.touchStartHandler = (e) => this.touchStart(e);
         this.touchMoveHandler = (e) => this.touchMove(e);
         this.touchEndHandler = (e) => this.touchEnd(e);
-        this.touchCancelHandler = () => this.cancelTouchPress();
+        this.touchCancelHandler = (e) => this.touchCancel(e);
         this.mouseDownHandler = (e) => this.mouseDown(e);
         this.mouseUpHandler = (e) => this.mouseUp(e);
         this.preventDrop = (e) => e.preventDefault();
@@ -77,6 +86,17 @@ class DragReorder {
         this.refreshItems();
     }
 
+    getHandleElement(item, selector) {
+        return selector ? item.querySelector(selector) : item;
+    }
+
+    getInputElement(item) {
+        return this.getHandleElement(
+            item,
+            this.useCoarsePointerDrag ? this.touchHandleSelector : this.handleSelector
+        );
+    }
+
     refreshItems() {
         // Add item class and idle class, make handles draggable or add touch listeners
         this.getAllItems().forEach(item => {
@@ -86,7 +106,7 @@ class DragReorder {
             if (!item.classList.contains('is-idle')) {
                 item.classList.add('is-idle');
             }
-            const element = this.handleSelector ? item.querySelector(this.handleSelector) : item;
+            const element = this.getInputElement(item);
             if (element) {
                 if (this.useCoarsePointerDrag) {
                     element.addEventListener('touchstart', this.touchStartHandler, { passive: false });
@@ -145,6 +165,7 @@ class DragReorder {
             return;
         }
         this.dragStartMeta = this.getItemMeta(this.selected);
+        this.dragStartPosition = this.captureDomPosition(this.selected);
         window.__dragReorderState.selected = this.selected;
         this.removeAllPlaceholders();
         this.selected.classList.remove('is-idle');
@@ -193,33 +214,56 @@ class DragReorder {
         this.container.appendChild(this.placeholder);
     }
 
-    dragEnd() {
-        const activeSelected = this.getSelectedItem();
+    finishDrag({ cancelled = false } = {}) {
+        const activeSelected = this.selected;
         if (!activeSelected) {
-            return;
+            this.touchDragActive = false;
+            this.cancelTouchPress();
+            this.enablePageScroll();
+            document.removeEventListener('dragover', this.preventDrop);
+            document.body.classList.remove('bookmark-dragging');
+            return false;
         }
 
+        if (cancelled) {
+            this.restoreDomPosition(activeSelected, this.dragStartPosition);
+        }
+        const changed = !cancelled && this.hasDomPositionChanged(activeSelected, this.dragStartPosition);
+        const reorderDetails = changed ? {
+            from: this.dragStartMeta || this.getItemMeta(activeSelected),
+            to: this.getItemMeta(activeSelected)
+        } : null;
+
+        activeSelected.style.display = '';
         activeSelected.classList.remove('is-draggable');
         activeSelected.classList.add('is-idle');
-        activeSelected.classList.add('bookmark-move-in');
-        requestAnimationFrame(() => {
-            setTimeout(() => activeSelected.classList.remove('bookmark-move-in'), 180);
-        });
+        if (changed) {
+            activeSelected.classList.add('bookmark-move-in');
+            requestAnimationFrame(() => {
+                setTimeout(() => activeSelected.classList.remove('bookmark-move-in'), 180);
+            });
+        }
         this.removeAllPlaceholders();
         this.enablePageScroll();
         document.removeEventListener('dragover', this.preventDrop);
-        const reorderDetails = {
-            from: this.dragStartMeta || this.getItemMeta(activeSelected),
-            to: this.getItemMeta(activeSelected)
-        };
         this.selected = null;
-        window.__dragReorderState.selected = null;
+        if (window.__dragReorderState?.selected === activeSelected) {
+            window.__dragReorderState.selected = null;
+        }
         this.dragStartMeta = null;
+        this.dragStartPosition = null;
+        this.touchDragActive = false;
+        this.cancelTouchPress();
         document.body.classList.remove('bookmark-dragging');
-        // Call the onReorder callback with the new order
-        if (this.onReorder && typeof this.onReorder === 'function') {
+
+        if (changed && this.onReorder && typeof this.onReorder === 'function') {
             this.onReorder(this.getNewOrder(), reorderDetails);
         }
+        return changed;
+    }
+
+    dragEnd() {
+        this.finishDrag();
     }
 
     mouseDown(e) {
@@ -237,17 +281,23 @@ class DragReorder {
     }
 
     startTouchDrag() {
-        this.selected = this.touchSourceElement ? this.touchSourceElement.closest(`.${this.itemClass}`) : null;
-        if (!this.selected) {
+        this.selected = this.touchSourceElement?.isConnected
+            ? this.touchSourceElement.closest(`.${this.itemClass}`)
+            : null;
+        if (!this.selected
+            || this.selected.classList.contains('bookmark-inline-editing')
+            || this.touchSourceElement?.closest?.('.bookmark-inline-form')) {
+            this.selected = null;
             this.touchDragActive = false;
+            this.cancelTouchPress();
             return;
         }
         this.dragStartMeta = this.getItemMeta(this.selected);
+        this.dragStartPosition = this.captureDomPosition(this.selected);
         window.__dragReorderState.selected = this.selected;
         this.removeAllPlaceholders();
         this.selected.classList.remove('is-idle');
         this.selected.classList.add('is-draggable');
-        this.disablePageScroll();
         this.touchDragActive = true;
         document.body.classList.add('bookmark-dragging');
     }
@@ -262,18 +312,20 @@ class DragReorder {
     }
 
     touchStart(e) {
+        if (this.touchDragActive || (e.touches && e.touches.length > 1)) {
+            this.touchCancel();
+            return;
+        }
         const touch = e.touches && e.touches[0] ? e.touches[0] : null;
-        this.touchSourceElement = e.currentTarget || e.target;
-        this.touchStartPoint = touch ? { x: touch.clientX, y: touch.clientY } : null;
-        this.touchDragActive = false;
         this.cancelTouchPress();
         this.touchSourceElement = e.currentTarget || e.target;
         this.touchStartPoint = touch ? { x: touch.clientX, y: touch.clientY } : null;
-        if (this.longPressMs > 0) {
+        this.touchDragActive = false;
+        if (this.touchConfirmMs > 0) {
             this.touchPressTimer = setTimeout(() => {
                 this.touchPressTimer = null;
                 this.startTouchDrag();
-            }, this.longPressMs);
+            }, this.touchConfirmMs);
             return;
         }
         this.startTouchDrag();
@@ -298,56 +350,81 @@ class DragReorder {
         const targetItem = pointElement ? pointElement.closest(`.${this.itemClass}`) : null;
         const targetContainer = pointElement ? pointElement.closest(this.touchContainerSelector) : null;
 
-        if (targetItem && targetItem !== activeSelected && !targetItem.contains(activeSelected)) {
-            this.ensurePlaceholder();
-            targetItem.parentNode.insertBefore(this.placeholder, targetItem);
-            if (this.isBefore(activeSelected, targetItem)) {
-                targetItem.parentNode.insertBefore(activeSelected, targetItem);
-            } else {
-                targetItem.parentNode.insertBefore(activeSelected, targetItem.nextSibling);
+        if (targetItem) {
+            if (targetItem === activeSelected || targetItem.contains(activeSelected)) {
+                return;
             }
-        } else if (targetContainer) {
-            if (targetContainer !== activeSelected.parentNode) {
-                targetContainer.appendChild(activeSelected);
-            }
-            this.ensurePlaceholder();
-            targetContainer.appendChild(this.placeholder);
+            const rect = targetItem.getBoundingClientRect();
+            const insertAfter = touch.clientY >= rect.top + (rect.height / 2);
+            const referenceNode = insertAfter ? targetItem.nextSibling : targetItem;
+            targetItem.parentNode.insertBefore(activeSelected, referenceNode);
+            return;
+        }
+        if (targetContainer) {
+            const referenceNode = this.getPositionItems(targetContainer)
+                .filter((item) => item !== activeSelected)
+                .find((item) => {
+                    const rect = item.getBoundingClientRect();
+                    return touch.clientY < rect.top + (rect.height / 2);
+                }) || null;
+            targetContainer.insertBefore(activeSelected, referenceNode);
         }
     }
 
-    touchEnd(e) {
+    touchEnd() {
         if (!this.touchDragActive) {
             this.cancelTouchPress();
             return;
         }
-        const activeSelected = this.getSelectedItem();
-        if (!activeSelected) {
+        this.finishDrag();
+    }
+
+    touchCancel() {
+        if (!this.touchDragActive) {
             this.cancelTouchPress();
             return;
         }
+        this.finishDrag({ cancelled: true });
+    }
 
-        activeSelected.classList.remove('is-draggable');
-        activeSelected.classList.add('is-idle');
-        activeSelected.classList.add('bookmark-move-in');
-        requestAnimationFrame(() => {
-            setTimeout(() => activeSelected.classList.remove('bookmark-move-in'), 180);
-        });
-        this.removeAllPlaceholders();
-        this.enablePageScroll();
-        const reorderDetails = {
-            from: this.dragStartMeta || this.getItemMeta(activeSelected),
-            to: this.getItemMeta(activeSelected)
+    getPositionItems(parent) {
+        if (!parent) return [];
+        return Array.from(parent.children).filter((child) => child.classList?.contains(this.itemClass));
+    }
+
+    captureDomPosition(item) {
+        const parent = item?.parentNode || null;
+        const siblings = this.getPositionItems(parent);
+        const index = siblings.indexOf(item);
+        return {
+            parent,
+            index,
+            previousSibling: index > 0 ? siblings[index - 1] : null,
+            nextSibling: index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : null
         };
-        this.selected = null;
-        window.__dragReorderState.selected = null;
-        this.dragStartMeta = null;
-        this.touchDragActive = false;
-        this.cancelTouchPress();
-        document.body.classList.remove('bookmark-dragging');
-        // Call the onReorder callback with the new order
-        if (this.onReorder && typeof this.onReorder === 'function') {
-            this.onReorder(this.getNewOrder(), reorderDetails);
+    }
+
+    hasDomPositionChanged(item, snapshot) {
+        if (!item || !snapshot?.parent || item.parentNode !== snapshot.parent) {
+            return true;
         }
+        return this.getPositionItems(snapshot.parent).indexOf(item) !== snapshot.index;
+    }
+
+    restoreDomPosition(item, snapshot) {
+        if (!item || !snapshot?.parent || !snapshot.parent.isConnected) {
+            return;
+        }
+        if (snapshot.nextSibling?.parentNode === snapshot.parent) {
+            snapshot.parent.insertBefore(item, snapshot.nextSibling);
+            return;
+        }
+        if (snapshot.previousSibling?.parentNode === snapshot.parent) {
+            snapshot.parent.insertBefore(item, snapshot.previousSibling.nextSibling);
+            return;
+        }
+        const siblings = this.getPositionItems(snapshot.parent).filter((candidate) => candidate !== item);
+        snapshot.parent.insertBefore(item, siblings[snapshot.index] || null);
     }
 
     isBefore(el1, el2) {
@@ -440,17 +517,25 @@ class DragReorder {
 
     // Public method to destroy the instance
     destroy() {
+        if (this.selected) {
+            this.finishDrag({ cancelled: true });
+        } else {
+            this.cancelTouchPress();
+            this.touchDragActive = false;
+            this.dragStartMeta = null;
+            this.dragStartPosition = null;
+            this.enablePageScroll();
+            document.removeEventListener('dragover', this.preventDrop);
+        }
         if (!this.container) {
             return;
         }
-        this.enablePageScroll();
-        this.removeAllPlaceholders();
         this.container.classList.remove('reorder-container');
-        
+
         // Remove classes and listeners from items
         this.getAllItems().forEach(item => {
             item.classList.remove(this.itemClass, 'is-idle', 'is-draggable');
-            const element = this.handleSelector ? item.querySelector(this.handleSelector) : item;
+            const element = this.getInputElement(item);
             if (element) {
                 if (this.useCoarsePointerDrag) {
                     element.removeEventListener('touchstart', this.touchStartHandler);

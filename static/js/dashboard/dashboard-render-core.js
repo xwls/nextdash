@@ -251,6 +251,8 @@ class DashboardRenderCore {
             if (blockForInlineEdit) {
                 return;
             }
+            this.destroyCategoryReorderInstances();
+            this.destroyDashboardCategoryReorderInstances();
             d.inbox.render();
             return;
         }
@@ -259,6 +261,8 @@ class DashboardRenderCore {
             if (blockForInlineEdit) {
                 return;
             }
+            this.destroyCategoryReorderInstances();
+            this.destroyDashboardCategoryReorderInstances();
             d.health.render();
             return;
         }
@@ -266,6 +270,8 @@ class DashboardRenderCore {
             if (blockForInlineEdit) {
                 return;
             }
+            this.destroyCategoryReorderInstances();
+            this.destroyDashboardCategoryReorderInstances();
             d.config.render();
             return;
         }
@@ -296,6 +302,10 @@ class DashboardRenderCore {
             d.multiSelect?.prune();
             return;
         }
+        // A full render replaces the reorder DOM. Abort pending/active drags first so
+        // delayed touch confirmation cannot lock interaction on detached rows.
+        this.destroyCategoryReorderInstances();
+        this.destroyDashboardCategoryReorderInstances();
         const animate = options && options.animate === true;
         d._renderAnimationsEnabled = animate;
         const container = document.getElementById('dashboard-layout');
@@ -557,13 +567,14 @@ class DashboardRenderCore {
             const reorderInstance = new DragReorder({
                 container: listElement,
                 itemSelector: '.bookmark-link',
-                /* Whole row is the drag handle so a bookmark can be grabbed anywhere.
-                   The row's <a> has draggable=false (see createBookmarkRow) so the
-                   browser's native link-drag can't hijack the reorder. The 500 ms
-                   long-press editor still works: HTML5 drag only starts once the
-                   pointer moves, and any move >8 px cancels the long-press timer. */
+                /* Mouse users can grab the whole row; coarse-pointer devices start
+                   only from the icon/lead handle so vertical page scrolling wins
+                   everywhere else. The row's <a> stays draggable=false to prevent
+                   native URL drag from hijacking desktop reorder. */
                 handleSelector: null,
+                touchHandleSelector: '.bookmark-reorder-handle',
                 longPressMs: 0,
+                touchConfirmMs: 0,
                 delegateItemDragOver: true,
                 onReorder: () => {
                     window.nextdashTrack?.('bookmark:reorder');

@@ -16,9 +16,11 @@ class SwipeNavigation {
         this._pointerDownHandler = null;
         this._pointerMoveHandler = null;
         this._pointerUpHandler = null;
+        this._pointerCancelHandler = null;
         this._touchStartHandler = null;
         this._touchMoveHandler = null;
         this._touchEndHandler = null;
+        this._touchCancelHandler = null;
         this._usesPointerEvents = false;
 
         this.init();
@@ -31,7 +33,10 @@ class SwipeNavigation {
             this._usesPointerEvents = true;
             this._pointerDownHandler = (e) => {
                 if (e.pointerType !== 'touch') return;
-                this.handleTouchStart({ changedTouches: [{ clientX: e.clientX, clientY: e.clientY }] });
+                this.handleTouchStart({
+                    target: e.target,
+                    changedTouches: [{ clientX: e.clientX, clientY: e.clientY }]
+                });
             };
             this._pointerMoveHandler = (e) => {
                 if (e.pointerType !== 'touch') return;
@@ -41,16 +46,23 @@ class SwipeNavigation {
                 if (e.pointerType !== 'touch') return;
                 this.handleTouchEnd({ changedTouches: [{ clientX: e.clientX, clientY: e.clientY }] });
             };
+            this._pointerCancelHandler = (e) => {
+                if (e.pointerType !== 'touch') return;
+                this.handleTouchCancel();
+            };
             document.body.addEventListener('pointerdown', this._pointerDownHandler, { passive: true });
             document.body.addEventListener('pointermove', this._pointerMoveHandler, { passive: true });
             document.body.addEventListener('pointerup', this._pointerUpHandler, { passive: true });
+            document.body.addEventListener('pointercancel', this._pointerCancelHandler, { passive: true });
         } else {
             this._touchStartHandler = (e) => this.handleTouchStart(e);
             this._touchMoveHandler = (e) => this.handleTouchMove(e);
             this._touchEndHandler = (e) => this.handleTouchEnd(e);
+            this._touchCancelHandler = () => this.handleTouchCancel();
             document.body.addEventListener('touchstart', this._touchStartHandler, { passive: true });
             document.body.addEventListener('touchmove', this._touchMoveHandler, { passive: true });
             document.body.addEventListener('touchend', this._touchEndHandler, { passive: true });
+            document.body.addEventListener('touchcancel', this._touchCancelHandler, { passive: true });
         }
 
         // Intentionally do NOT add mouse event listeners so swipe navigation won't work with the cursor.
@@ -67,6 +79,9 @@ class SwipeNavigation {
             if (this._pointerUpHandler) {
                 document.body.removeEventListener('pointerup', this._pointerUpHandler);
             }
+            if (this._pointerCancelHandler) {
+                document.body.removeEventListener('pointercancel', this._pointerCancelHandler);
+            }
         } else {
             if (this._touchStartHandler) {
                 document.body.removeEventListener('touchstart', this._touchStartHandler);
@@ -77,18 +92,35 @@ class SwipeNavigation {
             if (this._touchEndHandler) {
                 document.body.removeEventListener('touchend', this._touchEndHandler);
             }
+            if (this._touchCancelHandler) {
+                document.body.removeEventListener('touchcancel', this._touchCancelHandler);
+            }
         }
         this._pointerDownHandler = null;
         this._pointerMoveHandler = null;
         this._pointerUpHandler = null;
+        this._pointerCancelHandler = null;
         this._touchStartHandler = null;
         this._touchMoveHandler = null;
         this._touchEndHandler = null;
+        this._touchCancelHandler = null;
+        this.resetSwipeState();
+    }
+
+    resetSwipeState() {
+        this.isSwiping = false;
+        this.swipeStartTime = 0;
     }
 
     handleTouchStart(e) {
-        this.touchStartX = e.changedTouches[0].clientX;
-        this.touchStartY = e.changedTouches[0].clientY;
+        const touch = e.changedTouches?.[0];
+        const target = e.target;
+        if (!touch || target?.closest?.('.bookmark-reorder-handle, .category-reorder-handle')) {
+            this.resetSwipeState();
+            return;
+        }
+        this.touchStartX = touch.clientX;
+        this.touchStartY = touch.clientY;
         this.touchMoveX = this.touchStartX;
         this.touchMoveY = this.touchStartY;
         this.isSwiping = null; // null = not determined, true = horizontal, false = vertical
@@ -115,17 +147,32 @@ class SwipeNavigation {
     handleTouchEnd(e) {
         // Only process if this was determined to be a horizontal swipe
         if (this.isSwiping !== true) {
+            this.resetSwipeState();
             return;
         }
 
-        this.touchEndX = e.changedTouches[0].clientX;
-        this.touchEndY = e.changedTouches[0].clientY;
+        const touch = e.changedTouches?.[0];
+        if (!touch) {
+            this.resetSwipeState();
+            return;
+        }
+        this.touchEndX = touch.clientX;
+        this.touchEndY = touch.clientY;
         this.handleSwipe();
+        this.resetSwipeState();
+    }
+
+    handleTouchCancel() {
+        this.resetSwipeState();
     }
 
     shouldBlockSwipeNavigation() {
         const dashboard = this.dashboard;
         if (!dashboard) {
+            return true;
+        }
+        if (document.body.classList.contains('bookmark-dragging')
+            || window.__dragReorderState?.selected) {
             return true;
         }
         if (document.body.classList.contains('bookmark-inline-edit-active')) {
